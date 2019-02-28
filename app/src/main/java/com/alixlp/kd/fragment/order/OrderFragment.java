@@ -1,4 +1,4 @@
-package com.alixlp.kd.fragment.active;
+package com.alixlp.kd.fragment.order;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,8 +13,6 @@ import android.os.Vibrator;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.telephony.TelephonyManager;
-import android.util.ArrayMap;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,8 +22,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.alixlp.kd.R;
-import com.alixlp.kd.bean.Agent;
-import com.alixlp.kd.bean.Goods;
+import com.alixlp.kd.activity.order.OrderDetailActivity;
 import com.alixlp.kd.bean.Order;
 import com.alixlp.kd.biz.AgentBiz;
 import com.alixlp.kd.biz.OrderBiz;
@@ -34,14 +31,10 @@ import com.alixlp.kd.net.CommonCallback;
 import com.alixlp.kd.util.SPUtils;
 import com.alixlp.kd.util.T;
 
-import org.apache.http.params.HttpParams;
-
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-public class ActiveOrderFragment extends Fragment {
+public class OrderFragment extends Fragment {
 
     private static final String TAG = "app-ActiveOrderFragment";
     private EditText mUserId;
@@ -51,14 +44,14 @@ public class ActiveOrderFragment extends Fragment {
     private TextView mConsigneeName;
     private TextView mAgentName;
     // 扫码声音
-    private int soundid, sendSuccessSoundid, inputSuccessSoundid, boxCodeRepeatSoundid,
+    private int soundid,cantFindSoundid,startSoundid, sendSuccessSoundid, inputSuccessSoundid, boxCodeRepeatSoundid,
             repeatedSweepCodeSoundid, scanOtherGoodsSoundid;
     private Vibrator mVibrator;
     private ScanManager mScanManager;
     private SoundPool soundpool = null;
     private String barcodeStr;
     private boolean isScaning = false;
-    private TextView mScanGoods;
+    private EditText mScanGoods;
     private final static String SCAN_ACTION = ScanManager.ACTION_DECODE;
     private String ActivieScan;
     private String mImie;
@@ -72,6 +65,7 @@ public class ActiveOrderFragment extends Fragment {
             soundpool.play(soundid, 1, 1, 0, 0, 1);
             mScanGoods.setText("");
             mVibrator.vibrate(100);
+
             byte[] barcode = intent.getByteArrayExtra(ScanManager.DECODE_DATA_TAG);
             int barcodelen = intent.getIntExtra(ScanManager.BARCODE_LENGTH_TAG, 0);
             Log.d(TAG, "barcodelen: " + barcodelen);
@@ -79,53 +73,34 @@ public class ActiveOrderFragment extends Fragment {
             barcodeStr = new String(barcode, 0, barcodelen);
             ActivieScan = (String) SPUtils.getInstance().get("active", "");
             Log.d(TAG, "onReceive: " + ActivieScan);
-            if (ActivieScan.indexOf(barcodeStr) != -1) {
-                T.showToast("请勿重复扫码");
-                // return;
-            }
-            // 已扫入列表
-            Map parms = new HashMap();
-            parms.put("code", barcodeStr);
-            parms.put("mImie", mImie);
-            mOrderBiz.orderActiveScan(parms, new CommonCallback<List<Goods>>() {
+            // 根据快递单号查找订单
+            Map params = new HashMap();
+            params.put("kcode", barcodeStr);
+            mOrderBiz.orderSearchOrderSn(params, new CommonCallback<Order>() {
                 @Override
                 public void onError(Exception e) {
-                    T.showToast(e.getMessage());
-                    return;
+                    soundpool.play(cantFindSoundid, 1, 1, 0, 0, 1);
+                    // T.showToast(e.getMessage());
                 }
-
                 @Override
-                public void onSuccess(List<Goods> response, String info) {
-                    if (!info.equals("ok")) {
-                        if (info.indexOf("-") != -1) {
-                            String code = info.split("-")[1];
-                            T.showToast(info.split("-")[0]);
-                            if (code.equals("101")) {
-                                // 重复扫码
-                                soundpool.play(repeatedSweepCodeSoundid, 1, 1, 0, 0, 1);
-                            }
-                            Log.d(TAG, "onSuccess: " + info);
-                        } else {
-                            T.showToast(info);
-                        }
-                    } else {
-                        // soundpool.play(scanOtherGoodsSoundid, 1, 1, 1, 1, 1); // 产品已扫足
-                        SPUtils.getInstance().put("active", ActivieScan + "," + barcodeStr);
-                    }
-                    String scanInfo = "";
-                    for (int index = 0; index < response.size(); index++) {
-                        scanInfo += response.get(index).getTitle() + ": " + response.get(index).getNum() + "\n";
-                    }
-                    mScanGoods.setText(scanInfo);
+                public void onSuccess(Order response, String info) {
+                    Intent intent = new Intent(getActivity(), OrderDetailActivity.class);
+                    Bundle bundle = new Bundle();
+                    bundle.putInt("OID", response.getId());
+                    bundle.putInt("ORDERSTATUS", 0);
+                    intent.putExtra("ORDER", bundle);
+                    startActivity(intent);
+                    Log.d(TAG, "onSuccess: " + info);
+                    Log.d(TAG, "onSuccess: " + response.getId() );
                 }
             });
-
             mScanGoods.setText(barcodeStr);
+            return;
         }
 
     };
 
-    public ActiveOrderFragment() {
+    public OrderFragment() {
 
     }
 
@@ -143,7 +118,7 @@ public class ActiveOrderFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_active_order, container, false);
+        View view = inflater.inflate(R.layout.fragment_order, container, false);
         return view;
         // return super.onCreateView(inflater, container, savedInstanceState);
     }
@@ -151,84 +126,8 @@ public class ActiveOrderFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View root, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(root, savedInstanceState);
-        mBtCheck = root.findViewById(R.id.bt_check); // 检测按钮
-        mUserId = root.findViewById(R.id.id_tv_user_id);  // 代理ID
-        mConsigneeName = root.findViewById(R.id.id_tv_consignee_name); // 收货人
-        mAgentName = root.findViewById(R.id.id_tv_agent_name); // 代理姓名
-        mScanGoods = root.findViewById(R.id.id_tv_scan_goods); // 扫入信息
-        mBtSend = root.findViewById(R.id.id_bt_send); // 确认无误发货
-
-        mImie = (String) SPUtils.getInstance().get("IMIE", "");
-
+        mScanGoods = root.findViewById(R.id.id_et_order_sn);
         mVibrator = (Vibrator) getActivity().getSystemService(Context.VIBRATOR_SERVICE); // 提示音
-        mBtCheck.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mUid = mUserId.getText().toString();
-                Log.d(TAG, "onClick: " + mUid.length() + ", " + mUid.equals(""));
-                if (mUid.length() == 0 || mUid.equals("")) {
-                    T.showToast("请填写代理ID");
-                    return;
-                }
-                mAgentBiz.agentInfo(mUid, new CommonCallback<Agent>() {
-                    @Override
-                    public void onError(Exception e) {
-                        T.showToast(e.getMessage());
-                        mAgentName.setText("");
-                        // 收货人信息
-                        mConsigneeName.setText("");
-                        return;
-                    }
-
-                    @Override
-                    public void onSuccess(Agent response, String info) {
-                        // 代理信息
-                        mAgentName.setText("姓名：" + response.getName() + " ，微信号：" + response.getWeixin() + "\n");
-                        // 收货人信息
-                        mConsigneeName.setText(response.getAddress());
-                        mScanGoods.setText("");
-                        SPUtils.getInstance().put("mUid", mUid);
-                        mUserId.setFocusable(false);
-                    }
-                });
-            }
-        });
-
-        // 确认无误发货
-        mBtSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String mUid = (String) SPUtils.getInstance().get("mUid", "");
-                if (mUid.length() == 0 || mUid.equals("")) {
-                    T.showToast("请填写代理ID");
-                    return;
-                }
-                Map params = new HashMap();
-                params.put("mUid", mUid);
-                params.put("mImie", mImie);
-                mOrderBiz.orderActiveSend(params, new CommonCallback<Order>() {
-                    @Override
-                    public void onError(Exception e) {
-                        T.showToast(e.getMessage());
-                        return;
-                    }
-
-                    @Override
-                    public void onSuccess(Order response, String info) {
-                        Log.d(TAG, "onSuccess: " + response.getOrderid());
-                        T.showToast("发货完成，单号为：" + response.getOrderid());
-                        SPUtils.getInstance().put("active", "");
-                        mScanGoods.setText("");
-                        mAgentName.setText("");
-                        mConsigneeName.setText("");
-                        mUserId.setText("");
-                        soundpool.play(sendSuccessSoundid, 1, 1, 0, 0, 1);// 发货成功
-                        mUserId.requestFocus(); // 重新聚焦
-                    }
-                });
-            }
-        });
-
     }
 
     @Override
@@ -269,6 +168,10 @@ public class ActiveOrderFragment extends Fragment {
             // 请勿重复扫码
             scanOtherGoodsSoundid = soundpool.load(getActivity(), R.raw.ctscanothergoodssoundid, 1); //
             // 扫入其他产品
+
+            cantFindSoundid = soundpool.load(getActivity(), R.raw.ctcantfindsoundid, 1); //
+            // 没找到订单
+            startSoundid = soundpool.load(getActivity(), R.raw.ctstartsoundid, 1);
         } else {
             // 普通话
             sendSuccessSoundid = soundpool.load(getActivity(), R.raw.sendsuccesssoundid, 1); // 发货成功
@@ -278,7 +181,14 @@ public class ActiveOrderFragment extends Fragment {
             // 请勿重复扫码
             scanOtherGoodsSoundid = soundpool.load(getActivity(), R.raw.scanothergoodssoundid, 1); //
             // 扫入其他产品
+            cantFindSoundid = soundpool.load(getActivity(), R.raw.cantfindsoundid, 1); //
+            // 没找到订单
+            startSoundid = soundpool.load(getActivity(), R.raw.startsoundid, 1);
         }
+
+        // 提示开始扫码
+        soundpool.play(cantFindSoundid, 1, 1, 0, 0, 1);
+
         IntentFilter filter = new IntentFilter();
         int[] idbuf = new int[]{PropertyID.WEDGE_INTENT_ACTION_NAME, PropertyID
                 .WEDGE_INTENT_DATA_STRING_TAG};

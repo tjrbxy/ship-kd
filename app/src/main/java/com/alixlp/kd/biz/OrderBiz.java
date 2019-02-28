@@ -161,4 +161,17 @@ public class OrderBiz {
                 .execute(commonCallback);
 
     }
+
+    public void orderSearchOrderSn(Map params ,CommonCallback<Order> commonCallback){
+        String baseUrl = "http://" + SPUtils.getInstance().get(Config.APIURL, "") +
+                "/api.php";
+        params.put("token", SPUtils.getInstance().get(Config.TOKEN, ""));
+        Log.d(TAG, "orderSearchOrderSn: " +baseUrl + "/order/orderSearchOrderSn" +SPUtils.getInstance().get(Config.TOKEN, ""));
+        OkHttpUtils
+                .post()
+                .url(baseUrl + "/order/orderSearchOrderSn")
+                .params(params)
+                .build()
+                .execute(commonCallback);
+    }
 }

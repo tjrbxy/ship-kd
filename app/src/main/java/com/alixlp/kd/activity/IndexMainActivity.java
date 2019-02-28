@@ -21,6 +21,7 @@ import com.alixlp.kd.R;
 import com.alixlp.kd.activity.setting.SettingActivity;
 import com.alixlp.kd.config.Config;
 import com.alixlp.kd.fragment.active.ActiveOrderFragment;
+import com.alixlp.kd.fragment.order.OrderFragment;
 import com.alixlp.kd.fragment.setting.RefreshSettingFragment;
 import com.alixlp.kd.fragment.order.ViewPagerOrderFragment;
 import com.alixlp.kd.util.NetWorkUtils;
@@ -38,7 +39,7 @@ public class IndexMainActivity extends AppCompatActivity implements
     private static final String TAG = "IndexMainActivity-app";
 
     private enum TabFragment {
-        order(R.id.navigation_order, ViewPagerOrderFragment.class),
+        order(R.id.navigation_order, OrderFragment.class),
         active(R.id.navigation_active, ActiveOrderFragment.class),
         setting(R.id.navigation_setting, RefreshSettingFragment.class);
 
