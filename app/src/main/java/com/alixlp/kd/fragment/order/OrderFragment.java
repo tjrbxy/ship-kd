@@ -63,7 +63,7 @@ public class OrderFragment extends Fragment {
             if(!getUserVisibleHint() )return;
             isScaning = false;
             soundpool.play(soundid, 1, 1, 0, 0, 1);
-            mScanGoods.setText("");
+
             mVibrator.vibrate(100);
 
             byte[] barcode = intent.getByteArrayExtra(ScanManager.DECODE_DATA_TAG);
@@ -80,6 +80,7 @@ public class OrderFragment extends Fragment {
                 @Override
                 public void onError(Exception e) {
                     soundpool.play(cantFindSoundid, 1, 1, 0, 0, 1);
+                    mScanGoods.setText("");
                     // T.showToast(e.getMessage());
                 }
                 @Override
